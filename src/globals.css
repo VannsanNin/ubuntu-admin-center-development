@@ -1,0 +1,172 @@
+@import "tailwindcss";
+
+.light {
+  --bg-page: #f1f5f9;
+  --bg-card: #ffffff;
+  --bg-elevated: #f8fafc;
+  --bg-hover: #e2e8f0;
+  --bg-input: #f1f5f9;
+  --border-subtle: #e2e8f0;
+  --border-default: #cbd5e1;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
+  --text-dim: #94a3b8;
+}
+
+/* ===== Backgrounds ===== */
+.light .bg-slate-950,
+.light .bg-slate-950\/20 { background-color: var(--bg-page); }
+.light .bg-slate-950\/40,
+.light .bg-slate-950\/60,
+.light .bg-slate-950\/80 { background-color: var(--bg-elevated); }
+.light .bg-slate-900,
+.light .bg-slate-900\/20,
+.light .bg-slate-900\/30,
+.light .bg-slate-900\/40,
+.light .bg-slate-900\/50,
+.light .bg-slate-900\/60,
+.light .bg-slate-900\/80,
+.light .bg-slate-900\/90 { background-color: var(--bg-card); }
+.light .bg-slate-800,
+.light .bg-slate-800\/20,
+.light .bg-slate-800\/30,
+.light .bg-slate-800\/50,
+.light .bg-slate-800\/80 { background-color: var(--bg-input); }
+.light .bg-slate-700 { background-color: var(--bg-hover); }
+.light .bg-slate-600 { background-color: #cbd5e1; }
+.light .bg-slate-850 { background-color: var(--bg-hover); }
+
+/* ===== Text ===== */
+.light .text-slate-100 { color: #0f172a; }
+.light .text-slate-200 { color: #1e293b; }
+.light .text-slate-300 { color: var(--text-primary); }
+.light .text-slate-400 { color: var(--text-muted); }
+.light .text-slate-500 { color: var(--text-dim); }
+.light .text-slate-600 { color: var(--text-dim); }
+
+/* ===== Borders ===== */
+.light .border-slate-800,
+.light .border-slate-800\/40,
+.light .border-slate-800\/50,
+.light .border-slate-800\/60,
+.light .border-slate-800\/80,
+.light .border-slate-800\/90,
+.light .border-slate-900,
+.light .border-slate-900\/80 { border-color: var(--border-subtle); }
+.light .border-slate-700,
+.light .border-slate-700\/40,
+.light .border-slate-700\/50,
+.light .border-slate-700\/60 { border-color: var(--border-default); }
+
+/* ===== Hover ===== */
+.light .hover\:bg-slate-800:hover,
+.light .hover\:bg-slate-750:hover { background-color: var(--bg-hover); }
+.light .hover\:bg-slate-700:hover { background-color: #cbd5e1; }
+
+/* ===== Status badges & accent backgrounds ===== */
+.light .bg-green-500\/20,
+.light .bg-green-950\/40,
+.light .bg-green-950\/30 { background-color: #dcfce7; }
+.light .bg-green-500 { background-color: #22c55e; }
+.light .border-green-900 { border-color: #86efac; }
+.light .text-green-400 { color: #16a34a; }
+
+.light .bg-red-500\/20,
+.light .bg-red-950\/40,
+.light .bg-red-950\/30,
+.light .bg-red-950\/20,
+.light .hover\:bg-red-500\/20:hover { background-color: #fee2e2; }
+.light .bg-red-500 { background-color: #ef4444; }
+.light .border-red-900\/65 { border-color: #fca5a5; }
+.light .text-red-400 { color: #dc2626; }
+
+.light .bg-orange-600\/20,
+.light .bg-orange-950\/40,
+.light .bg-orange-900\/40 { background-color: #ffedd5; }
+.light .bg-orange-600 { background-color: #ea580c; }
+.light .border-orange-900\/65 { border-color: #fdba74; }
+.light .text-orange-400,
+.light .text-orange-500 { color: #ea580c; }
+
+.light .bg-yellow-500\/10,
+.light .bg-yellow-500\/5 { background-color: #fef9c3; }
+.light .text-yellow-400 { color: #ca8a04; }
+
+.light .bg-blue-500 { background-color: #3b82f6; }
+
+/* ===== Modals / overlays ===== */
+.light .bg-black\/50 { background-color: rgba(0, 0, 0, 0.05); }
+.light .bg-black\/60 { background-color: rgba(0, 0, 0, 0.08); }
+
+/* ===== Inputs ===== */
+.light select,
+.light input,
+.light textarea { background-color: var(--bg-card); color: var(--text-primary); }
+.light select option { background-color: var(--bg-card); color: var(--text-primary); }
+.light input::placeholder,
+.light textarea::placeholder { color: var(--text-dim); }
+
+/* ===== Headers and sticky elements ===== */
+.light thead.bg-slate-800,
+.light thead.bg-slate-800.sticky,
+.light th { background-color: var(--bg-input); }
+
+/* ===== Sidebar ===== */
+.light aside { background-color: var(--bg-card); }
+
+/* ===== Tables ===== */
+.light td { color: var(--text-secondary); }
+.light th { color: var(--text-muted); }
+
+/* ===== Buttons ===== */
+.light .bg-slate-800.hover\:bg-slate-700 { background-color: var(--bg-input); }
+
+/* ===== Stat cards ===== */
+.light .text-2xl.font-bold { color: var(--text-primary); }
+
+/* ===== Orange accent backgrounds (sidebar icons, etc) ===== */
+.light .bg-orange-500\/10,
+.light .bg-orange-500\/20,
+.light .bg-orange-500\/30 { background-color: #ffedd5; }
+.light .bg-green-500\/10 { background-color: #dcfce7; }
+.light .bg-red-500\/5,
+.light .bg-red-500\/10 { background-color: #fee2e2; }
+
+/* ===== Terminal output ===== */
+.light .bg-slate-950.border.border-slate-800 { background-color: #f8fafc; }
+
+/* ===== Table header sticky ===== */
+.light .sticky.bg-slate-800 { background-color: #e2e8f0; }
+
+/* ===== Disabled badges ===== */
+.light .bg-slate-700.text-slate-400 { background-color: #e2e8f0; color: #94a3b8; }
+
+/* ===== Link hover ===== */
+.light .hover\:text-slate-100:hover { color: var(--text-primary); }
+
+/* ===== Ghost/icon buttons: white-on-light hover fix ===== */
+/* Buttons that turn text white on hover need a dark surface underneath,
+   otherwise they vanish against the light backgrounds above.
+   (Red destructive hovers already stay saturated, so skip them.) */
+.light [class*="hover:text-white"]:not([class*="hover:bg-red"]):hover,
+.light [class*="group-hover:text-white"]:is([class*="hover:bg-red"] *):hover {
+  background-color: #334155;
+  color: #ffffff;
+}
+
+/* Group-hover label spans sit on lightened rows; darken the text instead. */
+.light .group:hover .group-hover\:text-white {
+  color: var(--text-primary);
+}
+
+/* ===== Selected/active chips & tabs: keep them as dark chips ===== */
+/* "bg-slate-800 text-white" active states would otherwise render white
+   text on a near-white surface in light mode. */
+.light .bg-slate-600.text-white,
+.light .bg-slate-700.text-white,
+.light .bg-slate-800.text-white,
+.light .bg-slate-900.text-white {
+  background-color: #334155;
+  color: #ffffff;
+}

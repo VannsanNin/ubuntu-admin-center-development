@@ -1,5 +1,20 @@
-/target
-*.swp
-*.swo
-*~
+node_modules/
+.next/
+*.pyc
+__pycache__/
+backend/venv/
+backend/app.db
+.env
+*.log
 .DS_Store
+dist/
+.aider*
+icons/
+next-env.d.ts
+
+# Tauri / Rust build artifacts
+src-tauri/target/
+src-tauri/gen/schemas/
+
+# Tooling
+.craft/

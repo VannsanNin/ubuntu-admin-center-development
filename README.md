@@ -1,118 +1,89 @@
 # Ubuntu Admin Center
 
-A self-contained native desktop application for Ubuntu system administration, built with Rust, GTK4, and Libadwaita.
+A native desktop administration dashboard for Ubuntu — system monitoring with
+live graphs, package management, services, firewall, users, disks, backups,
+Docker containers, a command library, an AI assistant, and audit logging.
 
-Replaces the previous web-based (Next.js + FastAPI) implementation with a single native binary that calls system commands directly.
+Built as a **Tauri 2** app: a React frontend rendered in the system WebKit,
+with all privileged operations handled by a Rust backend through Tauri IPC.
+No web server, no database server — everything runs locally.
+
+## Tech Stack
+
+- **Shell:** Tauri 2 (Rust)
+- **Backend:** Rust — tokio, rusqlite (bundled SQLite), bcrypt
+- **Frontend:** React 19, Vite 7, TypeScript, Tailwind CSS 4, Radix UI, Recharts
 
 ## Features
 
-| Module | Description |
-|---|---|
-| **Dashboard** | System overview — hostname, uptime, memory, disk, CPU load |
-| **Packages** | Search, install, remove, update, and upgrade APT packages |
-| **Installed Apps** | Browse installed `.deb` packages with uninstall support |
-| **Software Installer** | One-click install/remove of curated software categories |
-| **Package Cleaner** | Clean APT cache, orphaned packages, and residual configs |
-| **Services** | List, start, stop, restart systemd services; view journal logs |
-| **Processes** | View and search running processes, sort by CPU or memory |
-| **Users** | Create, lock, unlock, and delete system users |
-| **Firewall** | UFW rule management — enable/disable, allow/deny, list rules |
-| **Repositories** | View, add, backup, and refresh APT sources |
-| **Files** | Browse filesystem with path entry, back/forward navigation |
-| **Logs** | View system logs (syslog, auth, kern, dmesg) with filtering and auto-refresh |
-| **Docker** | List containers and images; start, stop, remove, view logs, pull images |
-| **Network** | View IP/gateway/DNS, ping, traceroute |
-| **Disk** | View mounts, scan directory usage |
-| **Backups** | Create and restore compressed archives |
-| **SSH** | Quick-connect to hosts and generate SSH keys |
-| **Commands** | Run arbitrary system commands with output display |
-| **AI Assistant** | AI-powered command suggestions via Ollama |
-| **Audit Logs** | Monitor security-relevant system events |
+- **Dashboard** — live telemetry: CPU, RAM, network throughput (computed from
+  `/proc/net/dev` deltas), storage donut, and GPU usage/VRAM graphs
+  (NVIDIA via `nvidia-smi`, AMD via sysfs). Light/dark theme.
+- **Installed Apps / Software Installer / Package Cleaner** — apt inventory,
+  curated install batches, cache/orphan cleanup analysis
+- **Packages** — search, install, remove, hold management
+- **Services & Processes** — systemd control, process inspection and signals
+- **Users** — account/group administration
+- **Firewall** — ufw rule management
+- **Repositories** — APT source toggling, testing, backup/restore
+- **Files** — browse, upload, download (to `~/Downloads`), manage permissions
+- **Logs** — aggregated syslog/auth/kernel/dmesg/webserver logs with filtering
+- **Docker** — container lifecycle, compose projects, stats
+- **Network / Disk** — interface info, connectivity tools, SMART-ish disk views
+- **Backups** — archive creation/restoration, optional GPG encryption, cron scheduling
+- **Commands** — reusable command library with streamed output
+- **AI Assistant** — offline knowledge-base assistant for common admin tasks
+- **Audit Logs** — local trail of administrative actions
 
-## Requirements
+## Prerequisites
 
-- **Ubuntu Linux** (or any Debian-based distribution)
-- **GTK 4.14+** and **libadwaita 1.5+**
-- **Rust 1.77+** (edition 2021)
-- **sudo** access (for system administration operations)
-
-## Build
+- Ubuntu (or another Linux with GTK/WebKit)
+- Node.js 20+ and npm
+- Rust toolchain (`rustup`)
+- System libraries:
 
 ```bash
-cargo build --release
+sudo apt install libwebkit2gtk-4.1-dev build-essential curl wget file \
+  libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
 ```
 
-## Run
-
-Most operations require root privileges:
+## Getting Started
 
 ```bash
-sudo ./target/release/ubuntu-admin-center
+npm install
+npm run tauri dev      # development
+npm run tauri build    # production bundles (.deb/.rpm/AppImage)
 ```
 
-## Development
+There is no login screen — the app runs as your local user. Commands that
+require root (package installs, service restarts, ufw changes, …) rely on
+passwordless sudo or a polkit authentication agent, matching the behavior of
+the original web version.
 
-Auto-reload on file changes (installs `cargo-watch` if needed):
+## Data & Storage
 
-```bash
-cargo install cargo-watch
-cargo watch -x run -w src/
-```
-
-## Architecture
-
-- **Frontend:** GTK4 + libadwaita (`gtk4-rs` 0.9, `libadwaita-rs` 0.7)
-- **Async runtime:** Tokio for non-blocking system command execution
-- **Sidebar navigation:** 20 modules switchable via `AdwStack`
-- **Window layout:** `Paned` with sidebar `ListBox` on the left and content `Stack` on the right
-- **Backend:** Calls system tools (`apt`, `systemctl`, `ufw`, `docker`, `ip`, etc.) via `tokio::process::Command`
-
-### Key Dependencies
-
-| Dependency | Version | Purpose |
-|---|---|---|
-| `gtk4` | 0.9 (v4_14) | GUI toolkit |
-| `libadwaita` | 0.7 (v1_5) | Adwaita widgets and styling |
-| `tokio` | 1 (full) | Async runtime |
-| `serde` / `serde_json` | 1 | Data serialization |
-| `regex` | 1 | Pattern matching |
-| `chrono` | 0.4 | Timestamp formatting |
-| `uuid` | 1 (v4) | Unique identifiers |
+- SQLite database: `~/.local/share/ubuntu-admin-center/admin-center.db`
+  (users, audit logs, backups, command library)
+- Backups are written to the directory configured in the Backups module
 
 ## Project Structure
 
 ```
-src/
-├── main.rs                # Application entry point, window layout, sidebar
-├── system/
-│   ├── mod.rs
-│   └── commands.rs        # Data types, run_command(), run_shell(), sanitize_input()
-└── modules/
-    ├── mod.rs
-    ├── dashboard.rs
-    ├── packages.rs
-    ├── installed_apps.rs
-    ├── software_installer.rs
-    ├── package_cleaner.rs
-    ├── services.rs
-    ├── processes.rs
-    ├── users.rs
-    ├── firewall.rs
-    ├── repositories.rs
-    ├── files.rs
-    ├── logs.rs
-    ├── docker.rs
-    ├── network.rs
-    ├── disk.rs
-    ├── backups.rs
-    ├── ssh.rs
-    ├── commands.rs
-    ├── ai_assistant.rs
-    └── audit_logs.rs
+src/                  React frontend
+  lib/api.ts          axios-style bridge over Tauri invoke()
+  lib/streams.ts      WebSocket-like shim over Tauri events
+  components/         feature modules (dashboard, docker, packages, …)
+src-tauri/
+  src/shell.rs        sandboxed command runner (ports Python run_command)
+  src/db.rs           SQLite schema + seed data
+  src/streams.rs      stats/command event streams
+  src/commands/*.rs   one module per admin domain
 ```
 
-Each module exports a single `pub fn create() -> Box` that returns a GTK widget.
+## Notes
 
-## License
-
-MIT
+- Frontend port is fixed to 1420 in dev (required by Tauri).
+- The `sudo`-based features behave identically to the previous FastAPI
+  implementation; no credentials are stored by the app itself.
+- SSH functionality was extracted into a separate app and is no longer
+  included here.
