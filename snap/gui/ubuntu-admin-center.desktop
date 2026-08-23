@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Ubuntu Admin Center
+Comment=Ubuntu administration dashboard with live monitoring
+Exec=ubuntu-admin-center
+Icon=${SNAP}/meta/gui/icon.png
+Terminal=false
+Categories=System;Utility;

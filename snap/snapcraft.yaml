@@ -1,0 +1,75 @@
+name: vannsan-ubuntu-admin-center
+base: core24
+version: "2.0.0"
+summary: Ubuntu administration dashboard with live monitoring
+description: |
+  Native desktop administration dashboard for Ubuntu — system monitoring with
+  live CPU/RAM/network/GPU graphs, package management, services, firewall,
+  users, disks, backups, Docker containers, a command library, an AI
+  assistant, and audit logging.
+
+  Built with Tauri 2: React 19 frontend rendered in the system WebKit, with
+  all privileged operations handled by a Rust backend through Tauri IPC.
+  No web server, no database server — everything runs locally.
+
+  Uses classic confinement because it administers the host system (apt,
+  systemd, ufw, docker) and requires unrestricted shell access.
+grade: stable
+confinement: classic
+
+apps:
+  vannsan-ubuntu-admin-center:
+    command: bin/ubuntu-admin-center
+    environment:
+      WEBKIT_DISABLE_DMABUF_RENDERER: "1"
+
+parts:
+  app:
+    plugin: nil
+    # Build tools come from the host when using --destructive-mode.
+    stage-packages:
+      - libwebkit2gtk-4.1-0
+      - libayatana-appindicator3-1
+      - librsvg2-2
+      - libxdo3
+    override-build: |
+      set -eux
+
+      # --- Node from the build snap (falls back to system node) ----------
+      NODE_BIN="$(find /snap/node/current -name node -type f 2>/dev/null | head -1 || true)"
+      if [ -n "$NODE_BIN" ]; then
+        export PATH="$(dirname "$NODE_BIN"):$PATH"
+      fi
+      node --version
+
+      # --- Rust toolchain --------------------------------------------------
+      # Prefer the user's rustup toolchain; fall back to bootstrapping one.
+      if [ -d "$HOME/.cargo/bin" ]; then
+        export PATH="$HOME/.cargo/bin:$PATH"
+      elif ! command -v cargo >/dev/null 2>&1; then
+        export RUSTUP_HOME="$CRAFT_PART_BUILD/rustup"
+        export CARGO_HOME="$CRAFT_PART_BUILD/cargo"
+        curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
+          | sh -s -- -y --profile minimal --default-toolchain stable
+        export PATH="$CARGO_HOME/bin:$PATH"
+      fi
+      cargo --version
+
+      # Build from the project tree itself ($CRAFT_PART_SRC excludes
+      # gitignored subdirs like src-tauri/icons, so use the real root).
+      cd "$CRAFT_PROJECT_DIR"
+
+      # --- Frontend ---------------------------------------------------------
+      npm ci
+      npm run build
+
+      # --- Tauri backend ------------------------------------------------------
+      cd src-tauri
+      cargo build --release --features tauri/custom-protocol
+      install -Dm755 target/release/ubuntu-admin-center \
+        "$CRAFT_PART_INSTALL/bin/ubuntu-admin-center"
+
+      # --- Desktop integration -----------------------------------------------
+      install -Dm644 icons/128x128.png "$CRAFT_PART_INSTALL/meta/gui/icon.png"
+      install -Dm644 ../snap/gui/ubuntu-admin-center.desktop \
+        "$CRAFT_PART_INSTALL/meta/gui/ubuntu-admin-center.desktop"

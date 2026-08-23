@@ -7,9 +7,9 @@ backend/app.db
 .env
 *.log
 .DS_Store
-dist/
+/dist/
 .aider*
-icons/
+/icons/
 next-env.d.ts
 
 # Tauri / Rust build artifacts
@@ -18,3 +18,9 @@ src-tauri/gen/schemas/
 
 # Tooling
 .craft/
+
+# Snapcraft local build dirs
+parts/
+prime/
+stage/
+*.snap
