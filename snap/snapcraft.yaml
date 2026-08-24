@@ -1,6 +1,7 @@
-name: vannsan-ubuntu-admin-center
+name: angkor-ubuntu-admin
 base: core24
 version: "2.0.0"
+title: Angkor Ubuntu Admin
 summary: Ubuntu administration dashboard with live monitoring
 description: |
   Native desktop administration dashboard for Ubuntu — system monitoring with
@@ -18,7 +19,7 @@ grade: stable
 confinement: classic
 
 apps:
-  vannsan-ubuntu-admin-center:
+  angkor-ubuntu-admin:
     command: bin/ubuntu-admin-center
     environment:
       WEBKIT_DISABLE_DMABUF_RENDERER: "1"
