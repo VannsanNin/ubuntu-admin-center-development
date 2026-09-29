@@ -1,0 +1,17 @@
+#!/bin/bash
+# Wrapper script for privileged operations in strict confinement snap
+# This script is called by the app and uses pkexec for privilege escalation
+
+set -euo pipefail
+
+# Get the command from arguments
+CMD="$*"
+
+# Check if we're running inside the snap
+if [ -n "${SNAP:-}" ]; then
+    # Use pkexec for privilege escalation
+    exec pkexec /bin/bash -c "$CMD"
+else
+    # Not in snap, use sudo directly
+    exec sudo /bin/bash -c "$CMD"
+fi

@@ -10,7 +10,9 @@ import {
   Upload,
   Terminal,
   PlusCircle,
-  HardDrive
+  HardDrive,
+  Search,
+  X,
 } from "lucide-react";
 import { TerminalOutput, ActionButton } from "./shared";
 
@@ -22,6 +24,7 @@ export function FilesModule() {
   const [command, setCommand] = useState("");
   const [loading, setLoading] = useState(false);
   const [newName, setNewName] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchFiles = useCallback(async () => {
@@ -77,7 +80,12 @@ export function FilesModule() {
     const segments = path.split("/").filter(Boolean);
     segments.pop();
     setPath("/" + segments.join("/"));
+    setSearchQuery("");
   };
+
+  const filteredFiles = files.filter((file) =>
+    file.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
     <div className="space-y-6 text-slate-100 max-w-7xl mx-auto p-1">
@@ -114,6 +122,24 @@ export function FilesModule() {
 
         {/* Directory Operations Group */}
         <div className="flex flex-wrap items-center gap-2">
+          <div className="relative flex items-center max-w-[220px]">
+            <Search className="absolute left-2.5 w-3.5 h-3.5 text-slate-500 pointer-events-none" />
+            <input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search files..."
+              className="w-full pl-8 pr-7 py-1.5 bg-slate-950 border border-slate-800 focus:border-orange-500/50 rounded-lg text-sm transition outline-none placeholder:text-slate-600"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery("")}
+                className="absolute right-2 p-0.5 text-slate-500 hover:text-slate-300 transition"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            )}
+          </div>
+
           <div className="relative flex items-center max-w-[180px]">
             <input
               value={newName}
@@ -161,7 +187,9 @@ export function FilesModule() {
       <div className="bg-slate-900/40 border border-slate-800/80 rounded-xl p-4 min-h-[300px] backdrop-blur-sm">
         <div className="border-b border-slate-800/60 pb-2 mb-4 flex justify-between items-center">
           <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Index Descriptor Canvas</span>
-          <span className="text-xs font-medium text-slate-500">{files.length} allocations</span>
+          <span className="text-xs font-medium text-slate-500">
+            {searchQuery ? `${filteredFiles.length} of ${files.length}` : `${files.length}`} allocations
+          </span>
         </div>
 
         {files.length === 0 ? (
@@ -169,15 +197,20 @@ export function FilesModule() {
             <Folder className="w-8 h-8 text-slate-700 mb-2" />
             <p className="text-sm font-medium">This target directory contains no assets.</p>
           </div>
+        ) : filteredFiles.length === 0 && searchQuery ? (
+          <div className="flex flex-col items-center justify-center py-16 text-slate-500">
+            <Search className="w-8 h-8 text-slate-700 mb-2" />
+            <p className="text-sm font-medium">No files match "{searchQuery}"</p>
+          </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5">
-            {files.map((file) => {
+            {filteredFiles.map((file) => {
               const isDir = !!file.isDirectory;
               
               return (
                 <div
                   key={file.name}
-                  onClick={() => isDir && setPath(`${path}/${file.name}`.replace(/\/+/g, "/"))}
+                  onClick={() => isDir && (() => { setPath(`${path}/${file.name}`.replace(/\/+/g, "/")); setSearchQuery(""); })()}
                   className={`flex items-center gap-3 p-3 rounded-xl border border-slate-800/50 hover:border-slate-700/60 transition group ${
                     isDir 
                       ? "bg-slate-950/40 hover:bg-slate-900/40 cursor-pointer" 
@@ -193,7 +226,19 @@ export function FilesModule() {
                   </div>
                   
                   <span className="text-xs font-mono truncate flex-1 text-slate-300 group-hover:text-slate-100 transition" title={file.name}>
-                    {file.name}
+                    {searchQuery ? (
+                      <>
+                        {file.name.split(new RegExp(`(${searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi')).map((part: string, i: number) =>
+                          part.toLowerCase() === searchQuery.toLowerCase() ? (
+                            <mark key={i} className="bg-orange-500/30 text-orange-300 rounded px-0.5">{part}</mark>
+                          ) : (
+                            <span key={i}>{part}</span>
+                          )
+                        )}
+                      </>
+                    ) : (
+                      file.name
+                    )}
                   </span>
 
                   {!isDir && (

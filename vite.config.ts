@@ -25,7 +25,14 @@ export default defineConfig({
         }
       : undefined,
     watch: {
-      ignored: ["**/src-tauri/**"],
+      ignored: [
+        "**/src-tauri/**",
+        "**/parts/**",
+        "**/prime/**",
+        "**/stage/**",
+        "**/overlay/**",
+        "**/dist/**",
+      ],
     },
   },
   envPrefix: ["VITE_", "TAURI_ENV_"],
@@ -33,5 +40,11 @@ export default defineConfig({
     target: process.env.TAURI_ENV_PLATFORM == "windows" ? "chrome105" : "safari13",
     minify: !process.env.TAURI_ENV_DEBUG ? "esbuild" : false,
     sourcemap: !!process.env.TAURI_ENV_DEBUG,
+    rollupOptions: {
+      input: {
+        main: path.resolve(__dirname, "index.html"),
+        overlay: path.resolve(__dirname, "overlay.html"),
+      },
+    },
   },
 });

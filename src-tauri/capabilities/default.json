@@ -1,12 +1,14 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Default capability for the main window",
-  "windows": ["main"],
+  "description": "Default capability for the main and usage overlay windows",
+  "windows": ["main", "usage-overlay"],
   "permissions": [
     "core:default",
     "core:event:default",
     "core:event:allow-listen",
-    "core:event:allow-emit"
+    "core:event:allow-emit",
+    "core:window:allow-set-focus",
+    "core:window:allow-start-dragging"
   ]
 }

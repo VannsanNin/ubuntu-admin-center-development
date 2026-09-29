@@ -23,15 +23,14 @@ const CRITICAL_PACKAGES: &[&str] = &[
 fn parse_dpkg_status(content: &str) -> Vec<Value> {
     let mut packages = Vec::new();
     let mut stanza: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+    let mut current_field = String::new();
 
     let flush = |stanza: &mut std::collections::HashMap<String, String>, packages: &mut Vec<Value>| {
         if stanza.is_empty() {
             return;
         }
         let status = stanza.get("status").map(|s| s.as_str()).unwrap_or("");
-        let installed = status.contains("install ok installed");
-        let not_installed = status.contains("not-installed");
-        if !installed && !not_installed {
+        if !status.contains("install ok installed") {
             stanza.clear();
             return;
         }
@@ -43,11 +42,12 @@ fn parse_dpkg_status(content: &str) -> Vec<Value> {
         let desc_raw = stanza.get("description").cloned().unwrap_or_default();
         let desc_short = desc_raw.lines().next().unwrap_or("").trim().to_string();
         packages.push(json!({
-            "status": if installed { "ii" } else { "un" },
+            "status": "ii",
             "name": name,
             "version": stanza.get("version").cloned().unwrap_or_default(),
             "architecture": stanza.get("architecture").cloned().unwrap_or_default(),
             "description": desc_short,
+            "search_text": desc_raw,
             "safe_to_remove": !CRITICAL_PACKAGES.contains(&name.as_str()),
         }));
         stanza.clear();
@@ -56,13 +56,20 @@ fn parse_dpkg_status(content: &str) -> Vec<Value> {
     for line in content.lines() {
         if line.trim().is_empty() {
             flush(&mut stanza, &mut packages);
+            current_field.clear();
         } else if line.starts_with(' ') || line.starts_with('\t') {
-            // continuation lines ignored
+            if let Some(value) = stanza.get_mut(&current_field) {
+                value.push('\n');
+                if line.trim() != "." {
+                    value.push_str(line.trim());
+                }
+            }
         } else {
             let (key, val) = match line.split_once(':') {
                 Some((k, v)) => (k.to_lowercase(), v.trim().to_string()),
                 None => continue,
             };
+            current_field.clone_from(&key);
             stanza.insert(key, val);
         }
     }
@@ -278,4 +285,46 @@ pub async fn package_cleaner_clean(
     }
     let command = parts.join(" && ");
     Ok(audit_and_run(&db, &token.unwrap_or_default(), "package-cleaner", &command, 600).await)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_installed_package_search_text() {
+        let content = concat!(
+            "Package: alsa-tools-gui\n",
+            "Status: install ok installed\n",
+            "Version: 1.0.28-1\n",
+            "Architecture: amd64\n",
+            "Description: GUI based ALSA utilities for specific hardware\n",
+            " rmedigicontrol - control tool for RME devices\n",
+            " .\n",
+            " This package contains several GUI tools.\n\n",
+        );
+        let packages = parse_dpkg_status(content);
+
+        assert_eq!(packages.len(), 1);
+        assert_eq!(packages[0]["name"], "alsa-tools-gui");
+        assert_eq!(
+            packages[0]["description"],
+            "GUI based ALSA utilities for specific hardware"
+        );
+        assert!(packages[0]["search_text"]
+            .as_str()
+            .unwrap()
+            .contains("rmedigicontrol"));
+        assert_eq!(packages[0]["safe_to_remove"], json!(true));
+    }
+
+    #[test]
+    fn excludes_packages_that_are_not_installed() {
+        let content = concat!(
+            "Package: removed-package\n",
+            "Status: deinstall ok not-installed\n",
+            "Description: Removed package\n\n",
+        );
+        assert!(parse_dpkg_status(content).is_empty());
+    }
 }

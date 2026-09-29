@@ -12,12 +12,35 @@
   "app": {
     "windows": [
       {
+        "label": "main",
         "title": "Ubuntu Admin Center",
         "width": 1440,
         "height": 900,
         "minWidth": 1024,
         "minHeight": 700,
         "center": true
+      },
+      {
+        "label": "usage-overlay",
+        "title": "Usage Widget",
+        "url": "overlay.html",
+        "width": 330,
+        "height": 190,
+        "minWidth": 330,
+        "minHeight": 190,
+        "maxWidth": 330,
+        "maxHeight": 190,
+        "visible": false,
+        "decorations": false,
+        "transparent": true,
+        "backgroundColor": "#00000000",
+        "alwaysOnTop": true,
+        "visibleOnAllWorkspaces": true,
+        "skipTaskbar": true,
+        "resizable": false,
+        "focusable": true,
+        "closable": false,
+        "shadow": true
       }
     ],
     "security": {

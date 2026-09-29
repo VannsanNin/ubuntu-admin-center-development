@@ -9,8 +9,18 @@ import {
   Trash2,
   ShieldAlert,
   ShieldCheck,
-  X,
 } from "lucide-react";
+
+const normalizeSearch = (value: unknown, collapseRepeats = false) => {
+  const normalized = String(value ?? "")
+    .normalize("NFKD")
+    .toLocaleLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, "");
+
+  return collapseRepeats
+    ? normalized.replace(/([\p{L}\p{N}])\1+/gu, "$1")
+    : normalized;
+};
 
 export function InstalledAppsModule() {
   const [packages, setPackages] = useState<any[]>([]);
@@ -40,12 +50,14 @@ export function InstalledAppsModule() {
   }, [fetchInstalled]);
 
   useEffect(() => {
-    const q = search.toLowerCase();
+    const rawSearch = search.trim();
+    const collapseRepeats = rawSearch.length >= 4;
+    const q = normalizeSearch(rawSearch, collapseRepeats);
     setFiltered(
-      packages.filter(
-        (p) =>
-          p.name?.toLowerCase().includes(q) ||
-          p.description?.toLowerCase().includes(q)
+      packages.filter((p) =>
+        [p.name, p.description, p.search_text].some((value) =>
+          normalizeSearch(value, collapseRepeats).includes(q)
+        )
       )
     );
   }, [search, packages]);
@@ -59,20 +71,24 @@ export function InstalledAppsModule() {
         action: "remove",
         package_name: pkg.name,
       });
+      const succeeded = res.data.exit_code === 0;
+      const stdout = res.data.stdout?.trim() || "";
+      const stderr = res.data.stderr?.trim() || "";
+      await fetchInstalled();
       setResult({
         name: pkg.name,
-        ok: res.data.exit_code === 0,
-        msg: res.data.stdout?.trim() || res.data.stderr?.trim() || "Done",
+        ok: succeeded,
+        msg: (succeeded ? stdout : stderr) || stdout || stderr || "Done",
       });
-      fetchInstalled();
     } catch (err: any) {
       setResult({
         name: pkg.name,
         ok: false,
         msg: err.response?.data?.detail || err.message || "Uninstall failed",
       });
+    } finally {
+      setUninstalling(null);
     }
-    setUninstalling(null);
   };
 
   return (
@@ -108,25 +124,6 @@ export function InstalledAppsModule() {
           </button>
         </div>
       </div>
-
-      {result && (
-        <div className={`px-4 py-3 rounded-lg border text-sm flex items-start gap-3 ${
-          result.ok
-            ? "bg-emerald-900/30 border-emerald-700/40 text-emerald-300"
-            : "bg-red-900/30 border-red-700/40 text-red-300"
-        }`}>
-          <div className="mt-0.5 shrink-0">
-            {result.ok ? <ShieldCheck className="w-4 h-4" /> : <ShieldAlert className="w-4 h-4" />}
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="font-medium">{result.ok ? "Uninstalled" : "Failed"}: {result.name}</p>
-            <p className="text-xs mt-0.5 opacity-80 break-words">{result.msg}</p>
-          </div>
-          <button onClick={() => setResult(null)} className="shrink-0 opacity-60 hover:opacity-100 transition">
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-      )}
 
       <div className="bg-slate-900/40 border border-slate-800/80 rounded-xl overflow-hidden shadow-sm backdrop-blur-sm">
         <div className="px-4 py-3 bg-slate-900/30 border-b border-slate-800/80 flex items-center justify-between">
@@ -207,14 +204,19 @@ export function InstalledAppsModule() {
       </div>
 
       {confirmPkg && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl max-w-md w-full mx-4 overflow-hidden">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/75 p-4 backdrop-blur-sm">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="uninstall-confirm-title"
+            className="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl max-w-md w-full overflow-hidden"
+          >
             <div className="px-6 py-4 border-b border-slate-800 flex items-center gap-3">
               <div className="p-2 bg-red-900/40 border border-red-700/40 rounded-lg text-red-400">
                 <Trash2 className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-slate-100">Uninstall Package</h3>
+                <h3 id="uninstall-confirm-title" className="text-base font-bold text-slate-100">Uninstall Package</h3>
                 <p className="text-xs text-slate-400 mt-0.5">This action will remove the package from your system.</p>
               </div>
             </div>
@@ -251,6 +253,89 @@ export function InstalledAppsModule() {
                 Uninstall
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {(uninstalling || result) && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="uninstall-status-title"
+            aria-live="polite"
+            className="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl max-w-md w-full overflow-hidden"
+          >
+            <div className="px-6 py-6 text-center">
+              <div
+                className={`mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border ${
+                  uninstalling
+                    ? "border-orange-500/30 bg-orange-500/10 text-orange-400"
+                    : result?.ok
+                      ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
+                      : "border-red-500/30 bg-red-500/10 text-red-400"
+                }`}
+              >
+                {uninstalling ? (
+                  <Loader2 className="h-7 w-7 animate-spin" />
+                ) : result?.ok ? (
+                  <ShieldCheck className="h-7 w-7" />
+                ) : (
+                  <ShieldAlert className="h-7 w-7" />
+                )}
+              </div>
+
+              <h3 id="uninstall-status-title" className="text-lg font-bold text-slate-100">
+                {uninstalling
+                  ? "Uninstalling package"
+                  : result?.ok
+                    ? "Uninstall complete"
+                    : "Uninstall failed"}
+              </h3>
+
+              {uninstalling ? (
+                <>
+                  <p className="mt-2 font-mono text-sm font-medium text-orange-400">{uninstalling}</p>
+                  <p className="mx-auto mt-3 max-w-xs text-sm leading-relaxed text-slate-400">
+                    APT is removing the package and updating the system database. Keep this window open.
+                  </p>
+                  <div className="mx-auto mt-5 h-1 w-32 overflow-hidden rounded-full bg-slate-800">
+                    <div className="h-full w-1/2 animate-pulse rounded-full bg-gradient-to-r from-transparent via-orange-400 to-transparent" />
+                  </div>
+                </>
+              ) : result ? (
+                <>
+                  <p className="mt-2 font-mono text-sm font-medium text-slate-200">{result.name}</p>
+                  <p className="mx-auto mt-3 max-w-xs text-sm leading-relaxed text-slate-400">
+                    {result.ok
+                      ? "The package was removed successfully."
+                      : "The package could not be removed. Review the details below and try again."}
+                  </p>
+                </>
+              ) : null}
+            </div>
+
+            {result?.msg && (
+              <details className="mx-6 mb-5 overflow-hidden rounded-lg border border-slate-700/70 bg-slate-950/60 text-left">
+                <summary className="cursor-pointer select-none px-4 py-3 text-xs font-medium text-slate-400 transition hover:text-slate-200">
+                  Package manager output
+                </summary>
+                <pre className="max-h-44 overflow-auto whitespace-pre-wrap break-words border-t border-slate-800 px-4 py-3 font-mono text-[11px] leading-relaxed text-slate-400">
+                  {result.msg}
+                </pre>
+              </details>
+            )}
+
+            {!uninstalling && (
+              <div className="flex justify-end border-t border-slate-800 bg-slate-950/50 px-6 py-4">
+                <button
+                  onClick={() => setResult(null)}
+                  className="rounded-lg border border-slate-700 bg-slate-800 px-4 py-2 text-sm font-medium text-slate-100 transition hover:bg-slate-700"
+                >
+                  Done
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

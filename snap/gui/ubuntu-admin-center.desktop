@@ -1,6 +1,6 @@
 [Desktop Entry]
 Type=Application
-Name=Angkor Ubuntu Admin
+Name=Ubuntu Admin Center
 Comment=Ubuntu administration dashboard with live monitoring
 Exec=ubuntu-admin-center
 Icon=${SNAP}/meta/gui/icon.png

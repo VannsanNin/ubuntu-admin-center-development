@@ -89,8 +89,10 @@ export class TauriStream {
     this.closed = true;
     const id = this.id;
     this.cleanup();
+    // Deliberate disconnect: do NOT fire onclose. That handler is reserved
+    // for unexpected termination (control-frame EOF or start failure), so
+    // callers that swap to a fallback (e.g. REST polling) don't do so on unmount.
     void invoke("stream_stop", { id }).catch(() => undefined);
-    this.onclose?.();
   }
 
   private cleanup() {

@@ -1,7 +1,7 @@
 name: angkor-ubuntu-admin
 base: core24
 version: "2.0.0"
-title: Angkor Ubuntu Admin
+title: Ubuntu Admin Center
 summary: Ubuntu administration dashboard with live monitoring
 description: |
   Native desktop administration dashboard for Ubuntu — system monitoring with
@@ -12,27 +12,61 @@ description: |
   Built with Tauri 2: React 19 frontend rendered in the system WebKit, with
   all privileged operations handled by a Rust backend through Tauri IPC.
   No web server, no database server — everything runs locally.
-
-  Uses classic confinement because it administers the host system (apt,
-  systemd, ufw, docker) and requires unrestricted shell access.
 grade: stable
-confinement: classic
+confinement: strict
+license: MIT
+contact: https://github.com/UbuntuAdminCenter/ubuntu-admin-center/issues
+website: https://github.com/UbuntuAdminCenter/ubuntu-admin-center
+source-code: https://github.com/UbuntuAdminCenter/ubuntu-admin-center
+issues: https://github.com/UbuntuAdminCenter/ubuntu-admin-center/issues
 
 apps:
-  angkor-ubuntu-admin:
+  ubuntu-admin-center:
     command: bin/ubuntu-admin-center
+    plugs:
+      - browser-support
+      - desktop
+      - desktop-legacy
+      - gsettings
+      - hardware-observe
+      - mount-observe
+      - network
+      - network-bind
+      - opengl
+      - process-control
+      - system-observe
+      - unity7
+      - wayland
+      - x11
+      - firewall-control
+      - ssh-keys
+      - removable-media
+      - udisks2
     environment:
       WEBKIT_DISABLE_DMABUF_RENDERER: "1"
+      TMPDIR: $XDG_RUNTIME_DIR
+
+layout:
+  /usr/share/icons:
+    bind: $SNAP/usr/share/icons
+  /usr/share/glib-2.0/schemas:
+    bind: $SNAP/usr/share/glib-2.0/schemas
 
 parts:
   app:
     plugin: nil
-    # Build tools come from the host when using --destructive-mode.
     stage-packages:
       - libwebkit2gtk-4.1-0
       - libayatana-appindicator3-1
       - librsvg2-2
       - libxdo3
+      - desktop-file-utils
+      - fonts-noto
+    build-packages:
+      - libwebkit2gtk-4.1-dev
+      - libayatana-appindicator3-dev
+      - librsvg2-dev
+      - libglib2.0-dev
     override-build: |
       set -eux
 
@@ -40,20 +74,24 @@ parts:
       NODE_BIN="$(find /snap/node/current -name node -type f 2>/dev/null | head -1 || true)"
       if [ -n "$NODE_BIN" ]; then
         export PATH="$(dirname "$NODE_BIN"):$PATH"
+      elif ! command -v node >/dev/null 2>&1; then
+        export NODE_DIR="$CRAFT_PART_BUILD/node"
+        if [ ! -x "$NODE_DIR/bin/node" ]; then
+          curl -fsSL https://nodejs.org/dist/v24.20.0/node-v24.20.0-linux-x64.tar.xz \
+            | tar -xJC "$CRAFT_PART_BUILD"
+          mv "$CRAFT_PART_BUILD/node-v24.20.0-linux-x64" "$NODE_DIR"
+        fi
+        export PATH="$NODE_DIR/bin:$PATH"
       fi
       node --version
 
       # --- Rust toolchain --------------------------------------------------
-      # Prefer the user's rustup toolchain; fall back to bootstrapping one.
-      if [ -d "$HOME/.cargo/bin" ]; then
-        export PATH="$HOME/.cargo/bin:$PATH"
-      elif ! command -v cargo >/dev/null 2>&1; then
-        export RUSTUP_HOME="$CRAFT_PART_BUILD/rustup"
-        export CARGO_HOME="$CRAFT_PART_BUILD/cargo"
-        curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
-          | sh -s -- -y --profile minimal --default-toolchain stable
-        export PATH="$CARGO_HOME/bin:$PATH"
-      fi
+      # Always use rustup to get a cargo that supports lockfile v4+.
+      export RUSTUP_HOME="$CRAFT_PART_BUILD/rustup"
+      export CARGO_HOME="$CRAFT_PART_BUILD/cargo"
+      curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
+        | sh -s -- -y --profile minimal --default-toolchain stable
+      export PATH="$CARGO_HOME/bin:$PATH"
       cargo --version
 
       # Build from the project tree itself ($CRAFT_PART_SRC excludes
@@ -74,3 +112,10 @@ parts:
       install -Dm644 icons/128x128.png "$CRAFT_PART_INSTALL/meta/gui/icon.png"
       install -Dm644 ../snap/gui/ubuntu-admin-center.desktop \
         "$CRAFT_PART_INSTALL/meta/gui/ubuntu-admin-center.desktop"
+
+  local-files:
+    plugin: dump
+    source: snap/local
+    organize:
+      bin/snap-admin-wrapper: bin/snap-admin-wrapper
+      com.ubuntuadmincenter.policy: usr/share/polkit-1/actions/com.ubuntuadmincenter.policy

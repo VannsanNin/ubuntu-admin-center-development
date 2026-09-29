@@ -1,5 +1,6 @@
 
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import { api } from "@/lib/api";
 import { TauriStream } from "@/lib/streams";
 import {
@@ -28,7 +29,9 @@ import {
   Server,
   Loader2,
   Terminal,
-  ActivitySquare
+  ActivitySquare,
+  Pin,
+  PinOff,
 } from "lucide-react";
 
 interface SystemInfo {
@@ -76,6 +79,12 @@ interface HistPoint {
 const HIST_MAX = 60;
 const GPU_UTIL_COLORS = ["#ec4899", "#14b8a6"];
 const GPU_VRAM_COLORS = ["#f472b6", "#5eead4"];
+const USAGE_PIN_STORAGE_KEY = "ubuntu-admin-center.dashboard.pinned-usage";
+type UsageCardId = "cpu" | "ram" | "gpu";
+
+function isUsageCardId(value: unknown): value is UsageCardId {
+  return value === "cpu" || value === "ram" || value === "gpu";
+}
 
 function fmtRate(bytesPerSec: number): string {
   if (!isFinite(bytesPerSec) || bytesPerSec < 0) return "0 B/s";
@@ -122,7 +131,33 @@ export default function DashboardPage() {
   const [hist, setHist] = useState<HistPoint[]>([]);
   const [netRate, setNetRate] = useState({ rx: 0, tx: 0 });
   const [gpus, setGpus] = useState<GpuInfo[]>([]);
+  const [pinnedUsage, setPinnedUsage] = useState<Set<UsageCardId>>(() => {
+    try {
+      const stored = localStorage.getItem(USAGE_PIN_STORAGE_KEY);
+      if (!stored) return new Set();
+      const parsed: unknown = JSON.parse(stored);
+      if (!Array.isArray(parsed)) return new Set();
+      return new Set(parsed.filter(isUsageCardId));
+    } catch {
+      return new Set();
+    }
+  });
   const prevNet = useRef<{ rx: number; tx: number } | null>(null);
+
+  useEffect(() => {
+    const metrics = [...pinnedUsage];
+    localStorage.setItem(USAGE_PIN_STORAGE_KEY, JSON.stringify(metrics));
+    void invoke("set_usage_selection", { metrics }).catch(() => undefined);
+  }, [pinnedUsage]);
+
+  const toggleUsagePin = (id: UsageCardId) => {
+    setPinnedUsage((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   useEffect(() => {
     api.get("/system/info").then((res) => {
@@ -215,7 +250,69 @@ export default function DashboardPage() {
   const diskFreeGB = parseFloat(info.disk.free) || 0;
   const memTotalMB = parseInt(displayData.memory.total, 10) || 0;
   const memUsedMB = parseInt(displayData.memory.used, 10) || 0;
-
+  const gpuPercent = gpus.length > 0
+    ? Math.round(gpus.reduce((total, gpu) => total + gpu.usage, 0) / gpus.length)
+    : null;
+  const gpuMemoryPercent = gpus.length > 0
+    ? Math.round(
+        gpus.reduce(
+          (total, gpu) => total + (gpu.memTotal > 0 ? (gpu.memUsed / gpu.memTotal) * 100 : 0),
+          0
+        ) / gpus.length
+      )
+    : 0;
+  const usageCards = [
+    {
+      id: "cpu" as const,
+      content: (
+        <StatCard
+          compact
+          icon={Cpu}
+          label="CPU Core Load"
+          value={`${displayData.cpuUsage}%`}
+          subvalue={`Load Avg: ${(displayData.loadAverage || []).join(" ")}`}
+          percentage={cpuPercent}
+          barColor="bg-blue-500"
+          pinned={pinnedUsage.has("cpu")}
+          onTogglePin={() => toggleUsagePin("cpu")}
+        />
+      ),
+    },
+    {
+      id: "ram" as const,
+      content: (
+        <StatCard
+          compact
+          icon={MemoryStick}
+          label="Physical RAM Memory"
+          value={`${displayData.memory.percentage}%`}
+          subvalue={`${memUsedMB >= 1024 ? `${(memUsedMB / 1024).toFixed(1)} GB` : `${memUsedMB} MB`} of ${memTotalMB >= 1024 ? `${(memTotalMB / 1024).toFixed(1)} GB` : `${memTotalMB} MB`}`}
+          percentage={displayData.memory.percentage}
+          barColor="bg-green-500"
+          pinned={pinnedUsage.has("ram")}
+          onTogglePin={() => toggleUsagePin("ram")}
+        />
+      ),
+    },
+    {
+      id: "gpu" as const,
+      content: (
+        <StatCard
+          compact
+          icon={ActivitySquare}
+          label="GPU Usage"
+          value={gpuPercent === null ? "—" : `${gpuPercent}%`}
+          subvalue={gpus.length > 0
+            ? `${gpus.length} GPU${gpus.length === 1 ? "" : "s"} · ${gpuMemoryPercent}% VRAM`
+            : "No GPU detected"}
+          percentage={gpuPercent ?? undefined}
+          barColor="bg-pink-500"
+          pinned={pinnedUsage.has("gpu")}
+          onTogglePin={() => toggleUsagePin("gpu")}
+        />
+      ),
+    },
+  ];
   const axisProps = {
     stroke: "currentColor",
     tick: { fill: "currentColor", fontSize: 10 },
@@ -244,24 +341,13 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Primary stat cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          icon={Cpu}
-          label="CPU Core Load"
-          value={`${displayData.cpuUsage}%`}
-          subvalue={`Load Avg: ${(displayData.loadAverage || []).join(" ")}`}
-          percentage={cpuPercent}
-          barColor="bg-blue-500"
-        />
-        <StatCard
-          icon={MemoryStick}
-          label="Physical RAM Memory"
-          value={`${displayData.memory.percentage}%`}
-          subvalue={`${memUsedMB >= 1024 ? `${(memUsedMB / 1024).toFixed(1)} GB` : `${memUsedMB} MB`} of ${memTotalMB >= 1024 ? `${(memTotalMB / 1024).toFixed(1)} GB` : `${memTotalMB} MB`}`}
-          percentage={displayData.memory.percentage}
-          barColor="bg-green-500"
-        />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {usageCards.map(({ id, content }) => (
+          <Fragment key={id}>{content}</Fragment>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <StatCard
           icon={HardDrive}
           label="Persistent Disk Volume"
@@ -536,6 +622,9 @@ function StatCard({
   subvalue,
   percentage,
   barColor = "bg-orange-500",
+  compact = false,
+  pinned = false,
+  onTogglePin,
 }: {
   icon: React.ElementType;
   label: string;
@@ -543,13 +632,34 @@ function StatCard({
   subvalue?: string;
   percentage?: number;
   barColor?: string;
+  compact?: boolean;
+  pinned?: boolean;
+  onTogglePin?: () => void;
 }) {
   return (
-    <div className="bg-slate-900/40 border border-slate-800/80 backdrop-blur-sm rounded-xl p-5 shadow-sm space-y-3">
-      <div className="flex items-center justify-between">
+    <div className={`bg-slate-900/40 border border-slate-800/80 backdrop-blur-sm rounded-xl shadow-sm space-y-3 ${compact ? "p-4" : "p-5"}`}>
+      <div className="flex items-center justify-between gap-2">
         <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{label}</span>
-        <div className="p-1.5 bg-slate-950 border border-slate-800 rounded-lg text-slate-400">
-          <Icon className="w-3.5 h-3.5" />
+        <div className="flex items-center gap-1.5">
+          {onTogglePin && (
+            <button
+              type="button"
+              onClick={onTogglePin}
+              aria-label={pinned ? `Remove ${label} from usage widget` : `Show ${label} in usage widget`}
+              aria-pressed={pinned}
+              title={pinned ? `Remove ${label} from usage widget` : `Show ${label} in usage widget`}
+              className={`rounded-lg border p-1.5 transition ${
+                pinned
+                  ? "border-orange-500/30 bg-orange-500/10 text-orange-400"
+                  : "border-slate-800 bg-slate-950 text-slate-500 hover:border-orange-500/30 hover:text-orange-400"
+              }`}
+            >
+              {pinned ? <PinOff className="h-3.5 w-3.5" /> : <Pin className="h-3.5 w-3.5" />}
+            </button>
+          )}
+          <div className="p-1.5 bg-slate-950 border border-slate-800 rounded-lg text-slate-400">
+            <Icon className="w-3.5 h-3.5" />
+          </div>
         </div>
       </div>
       <div>
@@ -558,8 +668,8 @@ function StatCard({
       </div>
       {percentage !== undefined && (
         <div className="w-full bg-slate-950 h-1.5 rounded-full overflow-hidden border border-slate-900">
-          <div 
-            className={`h-full ${barColor} transition-all duration-500 rounded-full`} 
+          <div
+            className={`h-full ${barColor} transition-all duration-500 rounded-full`}
             style={{ width: `${Math.min(Math.max(percentage, 0), 100)}%` }}
           />
         </div>
